@@ -1,0 +1,290 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+
+    "Description": "AWS CloudFormation Sample Template NatGateway: Sample template showing how to create a public NAT gateway. **WARNING** This template creates an Amazon NAT instance. You will be billed for the AWS resources used if you create a stack from this template.",
+    "Outputs": {
+        "NatEip": {
+            "Description": "Nat Elastic IP",
+            "Value": {
+                "Ref": "NatEip"
+            }
+        },
+        "VPCId": {
+            "Description": "VPC Id",
+            "Value": {
+                "Ref": "VPC"
+            }
+        }
+    },
+
+"Mappings" : {
+    "AWSNATAMI" : {
+      "us-east-1"      : { "AMI" : "ami-184dc970" },
+      "us-east-2"      : { "AMI" : "ami-c6699baf" },
+      "us-west-2"      : { "AMI" : "ami-52ff7262" },
+      "us-west-1"      : { "AMI" : "ami-3bcc9e7e" },
+      "eu-west-1"      : { "AMI" : "ami-0b5b6c7f" },
+      "ap-southeast-1" : { "AMI" : "ami-02eb9350" },
+      "ap-southeast-2" : { "AMI" : "ami-ab990e91" },
+      "ap-northeast-1" : { "AMI" : "ami-14d86d15" },
+      "sa-east-1"      : { "AMI" : "ami-0439e619" }
+    },
+
+    "AWSInstanceType2Arch" : {
+      "t1.micro"    : { "Arch" : "64" },
+      "m1.small"    : { "Arch" : "64" },
+      "m1.medium"   : { "Arch" : "64" },
+      "m1.large"    : { "Arch" : "64" },
+      "m1.xlarge"   : { "Arch" : "64" },
+      "m2.xlarge"   : { "Arch" : "64" },
+      "m2.2xlarge"  : { "Arch" : "64" },
+      "m2.4xlarge"  : { "Arch" : "64" },
+      "c1.medium"   : { "Arch" : "64" },
+      "c1.xlarge"   : { "Arch" : "64" },
+      "cc1.4xlarge" : { "Arch" : "64Cluster" },
+      "cc2.8xlarge" : { "Arch" : "64Cluster" },
+      "cg1.4xlarge" : { "Arch" : "64GPU" }
+    },
+
+    "SubnetConfig" : {
+      "VPC"     : { "CIDR" : "172.0.0.0/16" },
+      "Public"  : { "CIDR" : "172.0.0.0/24" },
+      "Private" : { "CIDR" : "172.0.1.0/24" },
+      "RDS"     : { "CIDR" : "172.0.2.0/24" }
+    }
+  },
+
+
+
+    "Parameters": {
+        "PrivateSubnetCidr": {
+            "Default": "172.18.32.0/21",
+            "Description": "Public Subnet CIDR",
+            "Type": "String"
+        },
+        "PublicSubnetCidr": {
+            "Default": "172.18.0.0/22",
+            "Description": "Public Subnet CIDR",
+            "Type": "String"
+        },
+        "VPCCIDR": {
+            "Default": "172.18.0.0/16",
+            "Description": "The IP address space for this VPC, in CIDR notation",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "InternetGateway": {
+            "Type": "AWS::EC2::InternetGateway"
+        },
+        "Nat": {
+            "Properties": {
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        "NatEip",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet"
+                }
+            },
+            "Type": "AWS::EC2::NatGateway"
+        },
+        "NatAttachment": {
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                },
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            },
+            "Type": "AWS::EC2::VPCGatewayAttachment"
+        },
+        "NatEip": {
+            "Properties": {
+                "Domain": "vpc"
+            },
+            "Type": "AWS::EC2::EIP"
+        },
+        "NatRoute": {
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "NatGatewayId": {
+                    "Ref": "Nat"
+                },
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }
+            },
+            "Type": "AWS::EC2::Route"
+        },
+        "PrivateRouteAssociation": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                },
+                "SubnetId": {
+                    "Ref": "PrivateSubnet"
+                }
+            },
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "PrivateRouteTable": {
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            },
+            "Type": "AWS::EC2::RouteTable"
+        },
+        "PrivateSubnet": {
+            "Properties": {
+                "CidrBlock": {
+                    "Ref": "PrivateSubnetCidr"
+                },
+                "MapPublicIpOnLaunch": "false",
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            },
+            "Type": "AWS::EC2::Subnet"
+        },
+        "PublicDefaultRoute": {
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                },
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }
+            },
+            "Type": "AWS::EC2::Route"
+        },
+        "PublicRouteAssociation": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet"
+                }
+            },
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "PublicRouteTable": {
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            },
+            "Type": "AWS::EC2::RouteTable"
+        },
+        "PublicSubnet": {
+            "Properties": {
+                "CidrBlock": {
+                    "Ref": "PublicSubnetCidr"
+                },
+                "MapPublicIpOnLaunch": "true",
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            },
+            "Type": "AWS::EC2::Subnet"
+        },
+        "VPC": {
+            "Properties": {
+                "CidrBlock": {
+                    "Ref": "VPCCIDR"
+                }
+            },
+            "Type": "AWS::EC2::VPC"
+        },
+    
+
+     "NATSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable internal access to the NAT device",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : "0.0.0.0/0" } ,
+           { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80", "SourceSecurityGroupId" : { "Ref" : "OpsWorksSecurityGroup" }} ,
+           { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80", "CidrIp" : { "Fn::FindInMap" : [ "SubnetConfig", "Private", "CIDR" ]}},
+           { "IpProtocol" : "tcp", "FromPort" : "9418",  "ToPort" : "9418",  "SourceSecurityGroupId" : { "Ref" : "OpsWorksSecurityGroup" }} ,
+           { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : { "Fn::FindInMap" : [ "SubnetConfig", "Private", "CIDR" ]}},
+           { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "SourceSecurityGroupId" : { "Ref" : "OpsWorksSecurityGroup" } } ],
+        "SecurityGroupEgress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : "0.0.0.0/0" } ,
+           { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0" } ,
+           { "IpProtocol" : "tcp", "FromPort" : "9418",  "ToPort" : "9418",  "CidrIp" : "0.0.0.0/0" } ,
+           { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0" } ],
+        "Tags" : [ { "Key" : "Name", "Value" : "NATSecurityGroup" } ]
+      },
+         
+  "OpsWorksSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Allow the OpsWorks instances to access the NAT device",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "SourceSecurityGroupId" : { "Ref" : "LoadBalancerSecurityGroup" }} ],
+        "Tags" : [ { "Key" : "Name", "Value" : "OpsWorksSecurityGroup" } ]
+      }
+    },
+
+    "ElasticLoadBalancer" : {
+      "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties" : {
+        "SecurityGroups" : [ { "Ref" : "LoadBalancerSecurityGroup" } ],
+        "Subnets" : [ { "Ref" : "PublicSubnet" } ],
+        "Listeners" : [ { "LoadBalancerPort" : "80", "InstancePort" : "80", "Protocol" : "HTTP" } ],
+        "HealthCheck" : {
+          "Target" : "HTTP:80/",
+          "HealthyThreshold" : "3",
+          "UnhealthyThreshold" : "5",
+          "Interval" : "90",
+          "Timeout" : "60"
+        }
+      }
+    },
+
+    "LoadBalancerSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable HTTP access on port 80",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [ { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0" } ],
+        "SecurityGroupEgress" : [ { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"} ],
+        "Tags" : [ { "Key" : "Name", "Value" : "LoadBalancerSecurityGroup" } ]
+      }
+    },
+
+    "PrivateSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "security group for EC2 instances created in the private subnet.",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : "0.0.0.0/0"},
+           { "IpProtocol" : "tcp", "FromPort" : "8085", "ToPort" : "8085", "SourceSecurityGroupId" : { "Ref" : "NATSecurityGroup" } } ],
+        "Tags" : [ { "Key" : "Name", "Value" : "BambooServerVPCPrivateSG" } ]
+      }
+    },
+    
+    "BambooServerRDSSubnetGroup" : {
+       "Type" : "AWS::RDS::DBSubnetGroup",
+       "Properties" : {
+          "DBSubnetGroupDescription" : "BambooServerRDSSubnetGroup",
+          "SubnetIds" : [
+              { "Ref" : "PrivateSubnet" },
+              { "Ref" : "RDSSubnet" }],
+          "Tags" : [ { "Key" : "Name", "Value" : "BambooServerRDSSubnetGroup" } ]
+       }
+    }
+}
+}  
+  
+
